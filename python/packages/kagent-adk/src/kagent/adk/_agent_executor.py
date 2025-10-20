@@ -29,7 +29,7 @@ from typing_extensions import override
 
 from kagent.core.a2a import TaskResultAggregator, get_kagent_metadata_key
 
-from ._constants import X_FOO_BAR_HEADER_NAME, X_FOO_BAR_SESSION_STATE_KEY
+from ._headers import has_forwarded_headers, iter_state_items
 from .converters.event_converter import convert_event_to_a2a_events
 from .converters.request_converter import convert_a2a_request_to_adk_run_args
 
@@ -165,16 +165,28 @@ class A2aAgentExecutor(AgentExecutor):
     ):
         # Convert the a2a request to ADK run args
         run_args = convert_a2a_request_to_adk_run_args(context)
-
-        foo_bar_header: str | None = None
         if context.call_context is not None:
             call_state = getattr(context.call_context, "state", {}) or {}
-            headers = call_state.get("headers", {})
-            if isinstance(headers, dict):
-                foo_bar_header = _get_header(headers, X_FOO_BAR_HEADER_NAME)
+            logging.info("call_state: %s", getattr(call_state, "__dict__", call_state))
+
+        header_state_updates: dict[str, str | None] = {}
+        if has_forwarded_headers():
+            request_headers: dict[str, Any] | None = None
+            if context.call_context is not None:
+                call_state = getattr(context.call_context, "state", {}) or {}
+                headers = call_state.get("headers", {})
+                if isinstance(headers, dict):
+                    request_headers = headers
+            for header_name, state_key in iter_state_items():
+                value: str | None = None
+                if request_headers is not None:
+                    extracted = _get_header(request_headers, header_name)
+                    if extracted is not None:
+                        value = str(extracted)
+                header_state_updates[state_key] = value
 
         # ensure the session exists
-        session = await self._prepare_session(context, run_args, runner, foo_bar_header)
+        session = await self._prepare_session(context, run_args, runner, header_state_updates)
 
         current_span = trace.get_current_span()
         if run_args["user_id"]:
@@ -268,7 +280,7 @@ class A2aAgentExecutor(AgentExecutor):
         context: RequestContext,
         run_args: dict[str, Any],
         runner: Runner,
-        foo_bar_header: str | None,
+        header_state_updates: dict[str, str | None],
     ):
         session_id = run_args["session_id"]
         # create a new session if not exists
@@ -288,9 +300,10 @@ class A2aAgentExecutor(AgentExecutor):
             # Update run_args with the new session_id
             run_args["session_id"] = session.id
 
-        if foo_bar_header:
-            session.state[X_FOO_BAR_SESSION_STATE_KEY] = str(foo_bar_header)
-        else:
-            session.state.pop(X_FOO_BAR_SESSION_STATE_KEY, None)
+        for state_key, value in header_state_updates.items():
+            if value:
+                session.state[state_key] = value
+            else:
+                session.state.pop(state_key, None)
 
         return session

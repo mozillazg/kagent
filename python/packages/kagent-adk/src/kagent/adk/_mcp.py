@@ -12,18 +12,18 @@ from google.adk.tools.mcp_tool.mcp_toolset import MCPToolset as BaseMCPToolset
 from mcp.types import ListToolsResult
 from typing_extensions import override
 
-from ._constants import X_FOO_BAR_HEADER_NAME, X_FOO_BAR_SESSION_STATE_KEY
+from ._headers import get_forwarded_headers
 
 
-def _merge_foo_bar_header(
-    headers: Optional[dict[str, str]], value: Optional[str]
+def _merge_header(
+    headers: Optional[dict[str, str]], header_name: str, header_value: Optional[str]
 ) -> Optional[dict[str, str]]:
-    """Returns headers updated with the foo-bar value when present."""
-    if not value:
+    """Returns headers updated with ``header_name`` set to ``header_value``."""
+    if not header_value:
         return headers
 
     merged = dict(headers) if headers else {}
-    merged[X_FOO_BAR_HEADER_NAME] = str(value)
+    merged[header_name] = str(header_value)
     return merged
 
 
@@ -37,13 +37,18 @@ class KAgentMCPTool(BaseMCPTool):
         credential: AuthCredential,
     ) -> Optional[dict[str, str]]:
         headers = await super()._get_headers(tool_context, credential)
-        foo_bar_value = None
-        if tool_context is not None:
-            # ToolContext.state exposes ``get`` for convenient lookup.
-            state = getattr(tool_context, "state", None)
-            if state is not None:
-                foo_bar_value = state.get(X_FOO_BAR_SESSION_STATE_KEY)
-        return _merge_foo_bar_header(headers, foo_bar_value)
+        if tool_context is None:
+            return headers
+
+        state = getattr(tool_context, "state", None)
+        if state is None:
+            return headers
+
+        merged = headers
+        for forwarded in get_forwarded_headers():
+            value = state.get(forwarded.state_key)
+            merged = _merge_header(merged, forwarded.name, value)
+        return merged
 
 
 class KAgentMCPToolset(BaseMCPToolset):
