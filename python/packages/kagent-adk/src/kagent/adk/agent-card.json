@@ -1,0 +1,37 @@
+{
+  "name": "k8s_a2a_agent",
+  "description": "An example A2A agent that knows how to use Kubernetes tools.",
+  "url": "http://127.0.0.1:8080",
+  "version": "",
+  "capabilities": {
+    "streaming": true,
+    "pushNotifications": false,
+    "stateTransitionHistory": true
+  },
+  "defaultInputModes": [
+    "text"
+  ],
+  "defaultOutputModes": [
+    "text"
+  ],
+  "skills": [
+    {
+      "id": "start-notification-stream",
+      "name": "Sends a stream of notifications with configurable count and interval",
+      "description": "Sends a stream of notifications with configurable count and interval",
+      "tags": [
+        "k8s",
+        "resources"
+      ],
+      "examples": [
+          "Sends a stream of notifications with configurable count and interval"
+      ],
+      "inputModes": [
+        "text"
+      ],
+      "outputModes": [
+        "text"
+      ]
+    }
+  ]
+}

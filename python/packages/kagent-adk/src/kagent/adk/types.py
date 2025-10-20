@@ -10,9 +10,10 @@ from google.adk.models.anthropic_llm import Claude as ClaudeLLM
 from google.adk.models.google_llm import Gemini as GeminiLLM
 from google.adk.models.lite_llm import LiteLlm
 from google.adk.tools.agent_tool import AgentTool
-from google.adk.tools.mcp_tool import MCPToolset, SseConnectionParams, StreamableHTTPConnectionParams
+from google.adk.tools.mcp_tool import SseConnectionParams, StreamableHTTPConnectionParams
 from pydantic import BaseModel, Field
 
+from ._mcp import KAgentMCPToolset
 from .models import AzureOpenAI as OpenAIAzure
 from .models import OpenAI as OpenAINative
 
@@ -99,10 +100,10 @@ class AgentConfig(BaseModel):
         tools: list[ToolUnion] = []
         if self.http_tools:
             for http_tool in self.http_tools:  # add http tools
-                tools.append(MCPToolset(connection_params=http_tool.params, tool_filter=http_tool.tools))
+                tools.append(KAgentMCPToolset(connection_params=http_tool.params, tool_filter=http_tool.tools))
         if self.sse_tools:
             for sse_tool in self.sse_tools:  # add stdio tools
-                tools.append(MCPToolset(connection_params=sse_tool.params, tool_filter=sse_tool.tools))
+                tools.append(KAgentMCPToolset(connection_params=sse_tool.params, tool_filter=sse_tool.tools))
         if self.remote_agents:
             for remote_agent in self.remote_agents:  # Add remote agents as tools
                 client = None

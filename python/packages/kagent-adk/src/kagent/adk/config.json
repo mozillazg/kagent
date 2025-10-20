@@ -1,0 +1,25 @@
+{
+  "model": {
+    "type": "openai",
+    "model": "gpt-4.1-mini",
+    "base_url": "https://aihubmix.com/v1"
+  },
+  "description": "An example A2A agent that knows how to use Kubernetes tools.",
+  "instruction": "You are an expert Kubernetes agent that uses tools to help users.",
+  "http_tools": [
+    {
+      "params": {
+        "url": "http://127.0.0.1:8084/mcp/",
+        "headers": {},
+        "timeout": 30,
+        "sse_read_timeout": 300,
+        "terminate_on_close": true
+      },
+      "tools": [
+        "start-notification-stream"
+      ]
+    }
+  ],
+  "sse_tools": null,
+  "remote_agents": null
+}

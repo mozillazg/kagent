@@ -11,7 +11,7 @@ from google.adk.cli.utils.agent_loader import AgentLoader
 
 from kagent.core import KAgentConfig, configure_tracing
 
-from . import AgentConfig, KAgentApp
+from kagent.adk import AgentConfig, KAgentApp
 
 logger = logging.getLogger(__name__)
 

@@ -29,10 +29,20 @@ from typing_extensions import override
 
 from kagent.core.a2a import TaskResultAggregator, get_kagent_metadata_key
 
+from ._constants import X_FOO_BAR_HEADER_NAME, X_FOO_BAR_SESSION_STATE_KEY
 from .converters.event_converter import convert_event_to_a2a_events
 from .converters.request_converter import convert_a2a_request_to_adk_run_args
 
 logger = logging.getLogger("google_adk." + __name__)
+
+
+def _get_header(headers: dict[str, Any], name: str) -> str | None:
+    """Returns the value of ``name`` from ``headers`` using case-insensitive lookup."""
+    lowercase = name.lower()
+    for key, value in headers.items():
+        if isinstance(key, str) and key.lower() == lowercase:
+            return value
+    return None
 
 
 class A2aAgentExecutorConfig(BaseModel):
@@ -156,8 +166,15 @@ class A2aAgentExecutor(AgentExecutor):
         # Convert the a2a request to ADK run args
         run_args = convert_a2a_request_to_adk_run_args(context)
 
+        foo_bar_header: str | None = None
+        if context.call_context is not None:
+            call_state = getattr(context.call_context, "state", {}) or {}
+            headers = call_state.get("headers", {})
+            if isinstance(headers, dict):
+                foo_bar_header = _get_header(headers, X_FOO_BAR_HEADER_NAME)
+
         # ensure the session exists
-        session = await self._prepare_session(context, run_args, runner)
+        session = await self._prepare_session(context, run_args, runner, foo_bar_header)
 
         current_span = trace.get_current_span()
         if run_args["user_id"]:
@@ -246,7 +263,13 @@ class A2aAgentExecutor(AgentExecutor):
                 )
             )
 
-    async def _prepare_session(self, context: RequestContext, run_args: dict[str, Any], runner: Runner):
+    async def _prepare_session(
+        self,
+        context: RequestContext,
+        run_args: dict[str, Any],
+        runner: Runner,
+        foo_bar_header: str | None,
+    ):
         session_id = run_args["session_id"]
         # create a new session if not exists
         user_id = run_args["user_id"]
@@ -264,5 +287,10 @@ class A2aAgentExecutor(AgentExecutor):
             )
             # Update run_args with the new session_id
             run_args["session_id"] = session.id
+
+        if foo_bar_header:
+            session.state[X_FOO_BAR_SESSION_STATE_KEY] = str(foo_bar_header)
+        else:
+            session.state.pop(X_FOO_BAR_SESSION_STATE_KEY, None)
 
         return session
